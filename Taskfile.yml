@@ -1,0 +1,15 @@
+# https://taskfile.dev
+
+version: '3'
+
+vars:
+  PROJECT: ontv-kodi
+  PLUGIN: plugin.video.ontv
+  ADDONS_DIR: "/Volumes/Devo/Users/jago/Library/Application Support/Kodi/addons"
+
+tasks:
+  test:
+    cmds:
+      - rm -rf "{{.ADDONS_DIR}}/{{.PLUGIN}}"
+      - cp -R "{{.PLUGIN}}" "{{.ADDONS_DIR}}"
+    silent: true
