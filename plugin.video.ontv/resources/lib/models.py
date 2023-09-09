@@ -22,6 +22,7 @@ class ITEM_MODE(StrEnum):
 class MenuItem:
     name: str
     mode: ITEM_MODE
+    icon: Optional[str] = None
 
 
 @dataclass
@@ -94,6 +95,6 @@ class ApiInfo:
 
 main_menu = [
     MenuItem(name="Categories", mode=ITEM_MODE.CATEGORIES),
-    MenuItem(name="Favourites", mode=ITEM_MODE.FAVOURITES),
-    MenuItem(name="Search", mode=ITEM_MODE.SEARCH)
+    MenuItem(name="Favourites", mode=ITEM_MODE.FAVOURITES, icon="DefaultAddonsInstalled.png"),
+    MenuItem(name="Search", mode=ITEM_MODE.SEARCH, icon="DefaultAddonsSearch.png")
 ]

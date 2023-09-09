@@ -94,7 +94,7 @@ def AddMenuEntry(
                 mode=ITEM_MODE.REM_FAVOURITE if Favourites.is_in(id) else ITEM_MODE.ADD_FAVOURITE
             )
             action_url = f"{sys.argv[0]}?{urlencode(action_params)}"
-            logging.warning(action_url)
+            logging.debug(action_url)
             listitem.addContextMenuItems([
                 (action_params.get("name"), f"RunPlugin({action_url})")
             ])
@@ -106,12 +106,12 @@ def AddMenuEntry(
             listitem.setProperty('inputstream', 'inputstream.ffmpegdirect')
             listitem.setProperty('inputstream.ffmpegdirect.stream_mode=timeshift', 'true')
             listitem.setProperty('inputstream.ffmpegdirect.is_realtime_stream', 'true')
-            listitem.setProperty("IsFolder", 'false')
+            listitem.setIsFolder(False)
         case ITEM_MODE.CATEGORY:
             vinfo.setTitle(name)
             listitem.setProperty("IsPlayable", 'false')
             listitem.setPath(listitem_url)
-            listitem.setProperty("IsFolder", 'true')
+            listitem.setIsFolder(True)
 
     listitem.setProperty("Property(Addon.Name)", "onTV")
     xbmcplugin.addDirectoryItem(
@@ -130,7 +130,8 @@ def createMainMenu(menu: list[MenuItem]):
         AddMenuEntry(
             name=it.name,
             id=0,
-            mode=it.mode
+            mode=it.mode,
+            iconimage=it.icon
         )
 
 
@@ -148,7 +149,7 @@ def createStreamsMenu(streams: list[Stream]):
     for st in sorted(streams, key=lambda st: st.name):
         AddMenuEntry(
             name=st.name.encode('ascii', 'ignore').decode(),
-            id=st.stream_id,
+            id=str(st.stream_id),
             mode=ITEM_MODE.STREAM,
             iconimage=st.stream_icon
         )

@@ -7,11 +7,13 @@ import sys
 import xbmcaddon
 import xbmcplugin
 import logging
+import xbmc
 from resources.lib import main
 from resources.lib.api import Api as Client
 from resources.lib.favourites import Favourites
-from resources.lib.models import Settings, ITEM_MODE, main_menu
+from resources.lib.models import Settings, ITEM_MODE, main_menu, Stream
 from urllib.parse import parse_qs
+from difflib import get_close_matches as gcm
 
 plugin_handle = int(sys.argv[1])
 ADDON = xbmcaddon.Addon(id='plugin.video.ontv')
@@ -30,6 +32,12 @@ Client.register(
 Favourites.register(profile_dir)
 
 
+def get_Score(st: Stream, query: str):
+    qr_tokens = query.lower().split(" ")
+    tokens = st.name.lower().split(" ")
+    return (sum([len(gcm(qr, tokens, cutoff=0.80)) for qr in qr_tokens]), st)
+
+
 def get_params():
     parsed = parse_qs(sys.argv[2][1:])
     return {k: v[0] for k, v in parsed.items()}
@@ -40,12 +48,9 @@ content_type = None
 content_id = params.get("id")
 name = params.get("name")
 mode = ITEM_MODE(params.get("mode", ""))
-iconimage = params.get("iconimage")
-description = None
-keyword = None
 
-logging.debug(sys.argv[2])
-logging.debug(params)
+logging.warning(sys.argv[2])
+logging.warning(params)
 
 match (mode):
     case ITEM_MODE.MAIN:
@@ -62,5 +67,14 @@ match (mode):
         Favourites.add(content_id)
     case ITEM_MODE.REM_FAVOURITE:
         Favourites.remove(content_id)
+    case ITEM_MODE.SEARCH:
+        keyboard = xbmc.Keyboard('', "type")
+        keyboard.doModal()
+        if keyboard.isConfirmed():
+            query = keyboard.getText()
+            with_scores = map(lambda st: get_Score(st, query), Client.streams)
+            valid_scores = [(sc, st) for sc, st in with_scores if sc > 0]
+            streams = list(map(lambda sc: sc[1], sorted(valid_scores, key=lambda sc: sc[0], reverse=True)))
+            main.createStreamsMenu(streams[:24])
 
 xbmcplugin.endOfDirectory(int(sys.argv[1]))
