@@ -9,7 +9,8 @@ import xbmcplugin
 import logging
 from resources.lib import main
 from resources.lib.api import Api as Client
-from resources.lib.models import API_INFO, ITEM_MODE, main_menu
+from resources.lib.favourites import Favourites
+from resources.lib.models import Settings, ITEM_MODE, main_menu
 from urllib.parse import parse_qs
 
 plugin_handle = int(sys.argv[1])
@@ -17,7 +18,7 @@ ADDON = xbmcaddon.Addon(id='plugin.video.ontv')
 profile_dir = Path(main.DIR_USERDATA)
 
 Client.register(
-    API_INFO(
+    Settings(
         username=ADDON.getSetting('ontv_username'),
         password=ADDON.getSetting('ontv_password'),
         host=ADDON.getSetting('ontv_host'),
@@ -26,6 +27,7 @@ Client.register(
     ),
     profile_dir
 )
+Favourites.register(profile_dir)
 
 
 def get_params():
@@ -54,5 +56,11 @@ match (mode):
         main.createStreamsMenu(
             list(filter(lambda s: s.category_id == content_id, Client.streams))
         )
+    case ITEM_MODE.FAVOURITES:
+        main.createStreamsMenu(Favourites.items)
+    case ITEM_MODE.ADD_FAVOURITE:
+        Favourites.add(content_id)
+    case ITEM_MODE.REM_FAVOURITE:
+        Favourites.remove(content_id)
 
 xbmcplugin.endOfDirectory(int(sys.argv[1]))

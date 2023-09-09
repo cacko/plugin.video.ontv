@@ -3,11 +3,12 @@
 import logging
 
 from resources.lib.api import Api as Client
+from resources.lib.favourites import Favourites
 from resources.lib.models import (
     ITEM_MODE,
-    API_CATEGORY,
-    API_STREAM,
-    MENU_ITEM
+    Category,
+    Stream,
+    MenuItem
 )
 import xbmcplugin
 import xbmcgui
@@ -64,7 +65,7 @@ def translation(id):
 
 def AddMenuEntry(
         name: str,
-        id: str | int,
+        id: str,
         mode: ITEM_MODE,
         iconimage=None,
         description=None
@@ -79,7 +80,7 @@ def AddMenuEntry(
         iconimage=iconimage,
         description=description
     )
-    listitem_url = f"{sys.argv[0]}?{urlencode(params)}"
+    listitem_url = f"{sys.argv[0]}?{urlencode(params, encoding='utf-8')}"
     listitem = xbmcgui.ListItem(label=name, label2=description)
     vinfo: xbmc.InfoTagVideo = listitem.getVideoInfoTag()
     listitem.setArt({'icon': 'DefaultFolder.png', 'thumb': iconimage})
@@ -87,6 +88,16 @@ def AddMenuEntry(
     match mode:
         case ITEM_MODE.STREAM:
             vinfo.setTitle(name)
+            action_params = dict(
+                id=str(id),
+                name='Remove favourite' if Favourites.is_in(id) else 'Add favourite',
+                mode=ITEM_MODE.REM_FAVOURITE if Favourites.is_in(id) else ITEM_MODE.ADD_FAVOURITE
+            )
+            action_url = f"{sys.argv[0]}?{urlencode(action_params)}"
+            logging.warning(action_url)
+            listitem.addContextMenuItems([
+                (action_params.get("name"), f"RunPlugin({action_url})")
+            ])
             listitem.setContentLookup(False)
             listitem_url = Client.stream_url(id)
             listitem.setPath(Client.stream_url(id))
@@ -113,7 +124,7 @@ def AddMenuEntry(
     return True
 
 
-def createMainMenu(menu: list[MENU_ITEM]):
+def createMainMenu(menu: list[MenuItem]):
     logging.debug(menu)
     for it in menu:
         AddMenuEntry(
@@ -123,20 +134,20 @@ def createMainMenu(menu: list[MENU_ITEM]):
         )
 
 
-def createCategoryMenu(categories: list[API_CATEGORY]):
+def createCategoryMenu(categories: list[Category]):
     logging.debug(categories)
     for ct in sorted(categories, key=lambda ct: ct.category_name):
         AddMenuEntry(
-            name=ct.category_name,
+            name=ct.category_name.encode('ascii', 'ignore').decode(),
             id=ct.category_id,
             mode=ITEM_MODE.CATEGORY,
         )
 
 
-def createStreamsMenu(streams: list[API_STREAM]):
+def createStreamsMenu(streams: list[Stream]):
     for st in sorted(streams, key=lambda st: st.name):
         AddMenuEntry(
-            name=st.name,
+            name=st.name.encode('ascii', 'ignore').decode(),
             id=st.stream_id,
             mode=ITEM_MODE.STREAM,
             iconimage=st.stream_icon
