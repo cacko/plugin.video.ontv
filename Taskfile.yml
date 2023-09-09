@@ -17,8 +17,8 @@ tasks:
 
   package:
     cmds:
-      - zip -r {{.PLUGIN}}-`xmllint --xpath "string(//addon/@version)" plugin.video.ontv/addon.xml`.zip {{.PLUGIN}}
-      - scp {{.PLUGIN}}-`xmllint --xpath "string(//addon/@version)" plugin.video.ontv/addon.xml`.zip pi4:~
+      - zip -r {{.PLUGIN}}-`xmllint --xpath "string(//addon/@version)" {{.PLUGIN}}/addon.xml`.zip {{.PLUGIN}}
+      - scp {{.PLUGIN}}-`xmllint --xpath "string(//addon/@version)" {{.PLUGIN}}/addon.xml`.zip pi4:~
 
   push:
     desc: commit and pushes current changes
@@ -26,3 +26,8 @@ tasks:
       - git add .  || true
       - git commit -am "$(curl -s https://commit.cacko.net/index.txt)" || true
       - git push || true
+
+  export:
+    desc: export env
+    cmds:
+      - mamba env export --no-builds  -n {{.PROJECT}} > environment.yml
