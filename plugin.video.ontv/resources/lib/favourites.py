@@ -49,7 +49,7 @@ class Favourites(object, metaclass=FavouritesMeta):
                 assert data
                 if len(data):
                     streams = Client.streams
-                    result = list(filter(lambda x: str(x.stream_id) in data, streams))
+                    result = list(map(lambda x: streams.get_data(stream_id=int(x)), data))
         except FileNotFoundError:
             pass
         except Exception:

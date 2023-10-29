@@ -1,10 +1,11 @@
+import logging
 from pathlib import Path
 from typing import Any, Optional
 from datetime import datetime, timedelta, timezone
 import pickle
 import requests
 from resources.lib.models import Settings, Category, Stream, ApiInfo
-from functools import reduce
+from functools import lru_cache, reduce
 
 
 class RequiresReload(Exception):
@@ -66,6 +67,7 @@ class BaseApiResource(object, metaclass=ApiResourceType):
             mtime = datetime.fromtimestamp(self.path.lstat().st_mtime)
             assert datetime.now(tz=timezone.utc) - mtime < self._lifetime
         except AssertionError:
+            logging.warning("requires reload")
             raise RequiresReload
 
 
@@ -89,16 +91,33 @@ class StreamsResource(BaseApiResource):
     def path(self) -> Path:
         return self.__class__.profile_path / "streams.data"
 
-    def get_data(self, category_id: str, *args, **kwds) -> Optional[list[Stream]]:
-        return self._load().get(category_id, [])
+    @lru_cache()
+    def get_data(
+            self,
+            category_id: str = None,
+            stream_id: int = None,
+            *args, **kwds
+    ) -> Optional[list[Stream] | Stream]:
+        if category_id:
+            return self._load().get(category_id, [])
+        if stream_id:
+            def streams():
+                for itms in self._load().values():
+                    yield from itms
+            return next(filter(lambda x: x.stream_id == stream_id, streams()), None)
+        return sum(self._load().values(), [])
 
     def _load(self) -> Any:
         try:
             assert self._struct is None
             assert self.path.exists()
+            logging.warning("file reload")
             with self.path.open("rb") as fp:
                 struct: list[Stream] = pickle.load(fp)
-                self._struct = reduce(lambda r, x: {**r, **{x.category_id: r.get(x.category_id, [])+[x]}}, struct, {})
+                self._struct = reduce(lambda r, x: {
+                    **r,
+                    **{x.category_id: r.get(x.category_id, [])+[x]}
+                }, struct, {})
         except AssertionError:
             pass
         return self._struct
