@@ -1,6 +1,6 @@
 # https://taskfile.dev
 
-version: '3'
+version: "3"
 
 vars:
   PROJECT: ontv-kodi
@@ -16,6 +16,7 @@ tasks:
     silent: true
 
   package:
+    desc: package and copy
     cmds:
       - zip -r {{.PLUGIN}}-`xmllint --xpath "string(//addon/@version)" {{.PLUGIN}}/addon.xml`.zip {{.PLUGIN}}
       - scp {{.PLUGIN}}-`xmllint --xpath "string(//addon/@version)" {{.PLUGIN}}/addon.xml`.zip pi4:~

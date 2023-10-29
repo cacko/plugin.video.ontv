@@ -8,6 +8,7 @@ import xbmcaddon
 import xbmcplugin
 import logging
 import xbmc
+import xbmcgui
 from resources.lib import main
 from resources.lib.api import Api as Client
 from resources.lib.favourites import Favourites
@@ -56,11 +57,9 @@ match (mode):
     case ITEM_MODE.MAIN:
         main.createMainMenu(main_menu)
     case ITEM_MODE.CATEGORIES:
-        main.createCategoryMenu(Client.categories)
+        main.createCategoryMenu(Client.categories.get_data())
     case ITEM_MODE.CATEGORY:
-        main.createStreamsMenu(
-            list(filter(lambda s: s.category_id == content_id, Client.streams))
-        )
+        main.createStreamsMenu(Client.streams.get_data(category_id=content_id))
     case ITEM_MODE.FAVOURITES:
         main.createStreamsMenu(Favourites.items)
     case ITEM_MODE.ADD_FAVOURITE:
@@ -76,5 +75,11 @@ match (mode):
             valid_scores = [(sc, st) for sc, st in with_scores if sc > 0]
             streams = list(map(lambda sc: sc[1], sorted(valid_scores, key=lambda sc: sc[0], reverse=True)))
             main.createStreamsMenu(streams[:24])
+    case ITEM_MODE.REFRESH:
+        dialog = xbmcgui.DialogProgress()
+        dialog.create("onTV")
+        for pct, txt in Client.reload():
+            dialog.update(pct, txt)
+        dialog.close()
 
 xbmcplugin.endOfDirectory(int(sys.argv[1]))

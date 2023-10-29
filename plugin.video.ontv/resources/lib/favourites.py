@@ -62,9 +62,10 @@ class Favourites(object, metaclass=FavouritesMeta):
 
     def do_add(self, stream_id: str):
         items = self.favourites
-        items.append(stream_id)
+        ids = list(map(lambda x: str(x.stream_id), items))
+        ids.append(stream_id)
         with self.json_path.open("w") as fp:
-            json.dump(items, fp)
+            json.dump(ids, fp)
 
     def do_remove(self, stream_id: str):
         ids = list(map(lambda x: str(x.stream_id), self.favourites))

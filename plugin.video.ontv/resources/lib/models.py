@@ -12,6 +12,7 @@ class ITEM_MODE(StrEnum):
     CATEGORY = "category"
     STREAM = "stream"
     MAIN = "main"
+    REFRESH = "refresh"
 
     @classmethod
     def _missing_(cls, value: Optional[str] = ""):
@@ -96,5 +97,6 @@ class ApiInfo:
 main_menu = [
     MenuItem(name="Categories", mode=ITEM_MODE.CATEGORIES),
     MenuItem(name="Favourites", mode=ITEM_MODE.FAVOURITES, icon="DefaultAddonsInstalled.png"),
-    MenuItem(name="Search", mode=ITEM_MODE.SEARCH, icon="DefaultAddonsSearch.png")
+    MenuItem(name="Search", mode=ITEM_MODE.SEARCH, icon="DefaultAddonsSearch.png"),
+    MenuItem(name="Refresh", mode=ITEM_MODE.REFRESH)
 ]

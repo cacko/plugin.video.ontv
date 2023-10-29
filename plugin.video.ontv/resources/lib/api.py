@@ -1,22 +1,131 @@
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
+from datetime import datetime, timedelta, timezone
 import pickle
 import requests
 from resources.lib.models import Settings, Category, Stream, ApiInfo
+from functools import reduce
+
+
+class RequiresReload(Exception):
+    pass
+
+
+class ApiResourceType(type):
+
+    __instances: dict[str, 'ApiResourceType'] = {}
+    profile_path: Path = None
+
+    def __call__(cls, *args, **kwds) -> Any:
+        k = cls.__name__
+        if k not in cls.__instances:
+            cls.__instances[k] = type.__call__(cls, *args, **kwds)
+        return cls.__instances[k]
+
+    def register(cls, profile: Path):
+        cls.profile_path = profile
+
+    def update(cls, data: Any):
+        cls().do_save(data)
+
+    def validate(cls, force=False):
+        cls().do_validate(force)
+
+
+class BaseApiResource(object, metaclass=ApiResourceType):
+
+    _struct: Any = None
+    _lifetime: timedelta = timedelta(hours=10)
+
+    @property
+    def path(self) -> Path:
+        raise NotImplementedError
+
+    def get_data(self, *args, **kwds) -> Any:
+        raise NotImplementedError
+
+    def do_save(self, data: Any):
+        with self.path.open("wb") as fp:
+            pickle.dump(data, fp)
+            self._struct = None
+
+    def _load(self) -> Any:
+        try:
+            assert self._struct is None
+            assert self.path.exists()
+            with self.path.open("rb") as fp:
+                self._struct = pickle.load(fp)
+        except AssertionError:
+            pass
+        return self._struct
+
+    def do_validate(self, force=False):
+        try:
+            assert not force
+            assert self.path.exists()
+            mtime = datetime.fromtimestamp(self.path.lstat().st_mtime)
+            assert datetime.now(tz=timezone.utc) - mtime < self._lifetime
+        except AssertionError:
+            raise RequiresReload
+
+
+class CategoriesResource(BaseApiResource):
+
+    _struct: list[Category] = None
+
+    @property
+    def path(self) -> Path:
+        return self.__class__.profile_path / "categories.data"
+
+    def get_data(self, *args, **kwds) -> Optional[list[Category]]:
+        return self._load()
+
+
+class StreamsResource(BaseApiResource):
+
+    _struct: dict[str, list[Stream]] = None
+
+    @property
+    def path(self) -> Path:
+        return self.__class__.profile_path / "streams.data"
+
+    def get_data(self, category_id: str, *args, **kwds) -> Optional[list[Stream]]:
+        return self._load().get(category_id, [])
+
+    def _load(self) -> Any:
+        try:
+            assert self._struct is None
+            assert self.path.exists()
+            with self.path.open("rb") as fp:
+                struct: list[Stream] = pickle.load(fp)
+                self._struct = reduce(lambda r, x: {**r, **{x.category_id: r.get(x.category_id, [])+[x]}}, struct, {})
+        except AssertionError:
+            pass
+        return self._struct
+
+
+class ApiInfoResource(BaseApiResource):
+
+    struct: ApiInfo = None
+
+    @property
+    def path(self) -> Path:
+        return self.__class__.profile_path / "apinfo.data"
+
+    def get_data(self, *args, **kwds) -> Optional[ApiInfo]:
+        return self._load()
 
 
 class ApiMeta(type):
 
     __instance: 'Api' = None
     __api_info: Settings = None
-    __profile_path: Path = None
 
     def __call__(cls, *args: Any, **kwds: Any) -> Any:
         if not cls.__instance:
             cls.__instance = type.__call__(
                 cls,
                 cls.__api_info,
-                cls.__profile_path,
                 *args,
                 **kwds
             )
@@ -24,33 +133,39 @@ class ApiMeta(type):
 
     def register(cls, info: Settings, profile: Path):
         cls.__api_info = info
-        cls.__profile_path = profile
+        BaseApiResource.register(profile=profile)
 
     @property
-    def info(cls) -> ApiInfo:
+    def info(cls) -> ApiInfoResource:
         return cls().get_info()
 
     @property
-    def categories(cls) -> list[Category]:
+    def categories(cls) -> CategoriesResource:
         return cls().get_categories()
 
     @property
-    def streams(cls) -> list[Stream]:
+    def streams(cls) -> StreamsResource:
         return cls().get_streams()
 
     def stream_url(cls, stream_id) -> str:
         return cls().get_stream_url(stream_id)
 
+    def reload(cls):
+        yield (0, "Reloading categories")
+        cls().get_categories(True)
+        yield (50, "Reloading streams")
+        cls().get_streams(True)
+        yield (100, "Reload one")
+
 
 class Api(object, metaclass=ApiMeta):
 
-    def __init__(self, info: Settings, profile: Path) -> None:
+    def __init__(self, info: Settings) -> None:
         self.__username = info.username
         self.__password = info.password
         self.__hostname = info.host
         self.__port = info.http_port
         self.__https_port = info.https_port
-        self.__profile = profile
 
     @property
     def player_api(self) -> str:
@@ -60,26 +175,6 @@ class Api(object, metaclass=ApiMeta):
     def stream_api(self) -> str:
         return f"http://{self.__hostname}:{self.__port}/live/{self.__username}/{self.__password}"
 
-    @property
-    def cache_categories(self) -> Path:
-        return self.__profile / "categories.data"
-
-    @property
-    def cache_streams(self) -> Path:
-        return self.__profile / "streams.data"
-
-    @property
-    def cache_info(self) -> Path:
-        return self.__profile / "apinfo.data"
-
-    def __save(self, cp: Path, data: Any):
-        with cp.open("wb") as fp:
-            pickle.dump(data, fp)
-
-    def __load(self, cp: Path) -> Any:
-        with cp.open("rb") as fp:
-            return pickle.load(fp)
-
     def __get(self, url, params: dict[str, Any] = {}) -> dict[str, Any]:
         res = requests.get(
             url=url,
@@ -87,8 +182,10 @@ class Api(object, metaclass=ApiMeta):
         )
         return res.json()
 
-    def get_categories(self) -> list[Category]:
-        if not self.cache_categories.exists():
+    def get_categories(self, reload=False) -> CategoriesResource:
+        try:
+            CategoriesResource.validate(reload)
+        except RequiresReload:
             data = self.__get(
                 self.player_api,
                 dict(
@@ -98,12 +195,13 @@ class Api(object, metaclass=ApiMeta):
                 )
             )
             result = [Category(**ct) for ct in data]
-            self.__save(self.cache_categories, result)
-            return result
-        return self.__load(self.cache_categories)
+            CategoriesResource.update(result)
+        return CategoriesResource()
 
-    def get_streams(self) -> list[Stream]:
-        if not self.cache_streams.exists():
+    def get_streams(self, reload=False) -> StreamsResource:
+        try:
+            StreamsResource.validate(reload)
+        except RequiresReload:
             data = self.__get(
                 self.player_api,
                 dict(
@@ -113,12 +211,13 @@ class Api(object, metaclass=ApiMeta):
                 )
             )
             result = [Stream(**ct) for ct in data]
-            self.__save(self.cache_streams, result)
-            return result
-        return self.__load(self.cache_streams)
+            StreamsResource.update(result)
+        return StreamsResource()
 
     def get_info(self) -> ApiInfo:
-        if not self.cache_info.exists():
+        try:
+            ApiInfoResource.validate(True)
+        except RequiresReload:
             data = self.__get(
                 self.player_api,
                 dict(
@@ -127,9 +226,8 @@ class Api(object, metaclass=ApiMeta):
                 )
             )
             result = ApiInfo(**data)
-            self.__save(self.cache_info, result)
-            return result
-        return self.__load(self.cache_info)
+            ApiInfoResource.update(result)
+        return ApiInfoResource
 
     def get_stream_url(self, stream_id) -> str:
         base_url = f"{self.stream_api}/{stream_id}.ts"
