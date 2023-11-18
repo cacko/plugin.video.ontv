@@ -36,7 +36,7 @@ class ApiResourceType(type):
 class BaseApiResource(object, metaclass=ApiResourceType):
 
     _struct: Any = None
-    _lifetime: timedelta = timedelta(hours=10)
+    _lifetime: timedelta = timedelta(minutes=10)
 
     @property
     def path(self) -> Path:
@@ -66,7 +66,7 @@ class BaseApiResource(object, metaclass=ApiResourceType):
             assert self.path.exists()
             mtime = datetime.fromtimestamp(self.path.lstat().st_mtime)
             assert datetime.now(tz=timezone.utc) - mtime < self._lifetime
-        except AssertionError:
+        except (AssertionError, FileNotFoundError):
             logging.warning("requires reload")
             raise RequiresReload
 
