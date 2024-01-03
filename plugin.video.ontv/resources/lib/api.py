@@ -250,6 +250,9 @@ class Api(object, metaclass=ApiMeta):
 
     def get_stream_url(self, stream_id) -> str:
         base_url = f"{self.stream_api}/{stream_id}.ts"
+        logging.info(base_url)
         return base_url
         res = requests.get(base_url, allow_redirects=False)
-        return res.headers.get("Location")
+        stream_url = res.headers.get("Location")
+        logging.info(stream_url)
+        return stream_url

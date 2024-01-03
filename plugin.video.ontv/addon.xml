@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="plugin.video.ontv" name="onTV" version="0.0.21" provider-name="cacko">
+<addon id="plugin.video.ontv" name="onTV" version="0.0.25" provider-name="cacko">
   <requires>
     <import addon="xbmc.python" version="3.0.0"/>
     <import addon="script.module.requests" version="2.7.0"/>
-    <import addon="inputstream.ffmpegdirect" version="21.0.0"/>
+    <import addon="inputstream.ffmpegdirect" version="21.2.0"/>
   </requires>
   <extension point="xbmc.python.pluginsource" library="default.py">
     <provides>audio video</provides>
