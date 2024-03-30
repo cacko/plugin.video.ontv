@@ -19,7 +19,9 @@ import html
 from urllib.parse import urlencode
 import sys
 import os
+import requests
 from requests.packages import urllib3
+requests.urllib3.disable_warnings()
 
 urllib3.disable_warnings()
 

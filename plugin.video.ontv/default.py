@@ -15,6 +15,8 @@ from resources.lib.favourites import Favourites
 from resources.lib.models import Settings, ITEM_MODE, main_menu, Stream
 from urllib.parse import parse_qs
 from difflib import get_close_matches as gcm
+import requests
+requests.urllib3.disable_warnings()
 
 plugin_handle = int(sys.argv[1])
 ADDON = xbmcaddon.Addon(id='plugin.video.ontv')

@@ -42,7 +42,7 @@
                     </control>
                 </setting>
                 <setting id="ontv_http_port" type="string" label="30144" help="">
-                    <default>8080</default>
+                    <default>80</default>
                     <constraints>
                         <allowempty>false</allowempty>
                     </constraints>
@@ -51,7 +51,7 @@
                     </control>
                 </setting>
                 <setting id="ontv_https_port" type="string" label="30145" help="">
-                    <default>25463</default>
+                    <default>443</default>
                     <constraints>
                         <allowempty>false</allowempty>
                     </constraints>

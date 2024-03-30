@@ -6,7 +6,7 @@ import pickle
 import requests
 from resources.lib.models import Settings, Category, Stream, ApiInfo
 from functools import lru_cache, reduce
-
+requests.urllib3.disable_warnings()
 
 class RequiresReload(Exception):
     pass
@@ -64,7 +64,10 @@ class BaseApiResource(object, metaclass=ApiResourceType):
         try:
             assert not force
             assert self.path.exists()
-            mtime = datetime.fromtimestamp(self.path.lstat().st_mtime)
+            mtime = datetime.fromtimestamp(self.path.stat().st_mtime, tz=timezone.utc)
+            logging.info(mtime)
+            logging.info(datetime.now(tz=timezone.utc))
+            logging.info(datetime.now(tz=timezone.utc) - mtime)
             assert datetime.now(tz=timezone.utc) - mtime < self._lifetime
         except (AssertionError, FileNotFoundError):
             logging.warning("requires reload")
@@ -168,6 +171,7 @@ class ApiMeta(type):
 
     def stream_url(cls, stream_id) -> str:
         return cls().get_stream_url(stream_id)
+    
 
     def reload(cls):
         yield (0, "Reloading categories")
@@ -188,11 +192,11 @@ class Api(object, metaclass=ApiMeta):
 
     @property
     def player_api(self) -> str:
-        return f"http://{self.__hostname}:{self.__port}/player_api.php"
+        return f"https://{self.__hostname}:{self.__https_port}/player_api.php"
 
     @property
     def stream_api(self) -> str:
-        return f"http://{self.__hostname}:{self.__port}/live/{self.__username}/{self.__password}"
+        return f"https://{self.__hostname}:{self.__https_port}/live/{self.__username}/{self.__password}"
 
     def __get(self, url, params: dict[str, Any] = {}) -> dict[str, Any]:
         res = requests.get(
@@ -204,7 +208,8 @@ class Api(object, metaclass=ApiMeta):
     def get_categories(self, reload=False) -> CategoriesResource:
         try:
             CategoriesResource.validate(reload)
-        except RequiresReload:
+        except RequiresReload as e:
+            logging.info(e)
             data = self.__get(
                 self.player_api,
                 dict(
@@ -252,7 +257,4 @@ class Api(object, metaclass=ApiMeta):
         base_url = f"{self.stream_api}/{stream_id}.ts"
         logging.info(base_url)
         return base_url
-        res = requests.get(base_url, allow_redirects=False)
-        stream_url = res.headers.get("Location")
-        logging.info(stream_url)
-        return stream_url
+
