@@ -127,7 +127,6 @@ def AddMenuEntry(
 
 
 def createMainMenu(menu: list[MenuItem]):
-    logging.debug(menu)
     for it in menu:
         AddMenuEntry(
             name=it.name,
@@ -138,7 +137,6 @@ def createMainMenu(menu: list[MenuItem]):
 
 
 def createCategoryMenu(categories: list[Category]):
-    logging.debug(categories)
     for ct in sorted(categories, key=lambda ct: ct.category_name):
         AddMenuEntry(
             name=ct.category_name.encode('ascii', 'ignore').decode(),

@@ -34,7 +34,6 @@ Client.register(
 )
 Favourites.register(profile_dir)
 
-
 def get_Score(st: Stream, query: str):
     qr_tokens = query.lower().split(" ")
     tokens = st.name.lower().split(" ")

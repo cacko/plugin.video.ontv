@@ -2,11 +2,16 @@ import logging
 from pathlib import Path
 from typing import Any, Optional
 from datetime import datetime, timedelta, timezone
-import pickle
 import requests
 from resources.lib.models import Settings, Category, Stream, ApiInfo
-from functools import lru_cache, reduce
-requests.urllib3.disable_warnings()
+from functools import reduce
+import xbmc
+import json
+import dataclasses
+
+
+def log(obj: any):
+    xbmc.log(repr(obj), xbmc.LOGINFO)    
 
 class RequiresReload(Exception):
     pass
@@ -36,7 +41,7 @@ class ApiResourceType(type):
 class BaseApiResource(object, metaclass=ApiResourceType):
 
     _struct: Any = None
-    _lifetime: timedelta = timedelta(minutes=10)
+    _lifetime: timedelta = timedelta(minutes=120)
 
     @property
     def path(self) -> Path:
@@ -46,31 +51,30 @@ class BaseApiResource(object, metaclass=ApiResourceType):
         raise NotImplementedError
 
     def do_save(self, data: Any):
-        with self.path.open("wb") as fp:
-            pickle.dump(data, fp)
+        with self.path.open("w") as fp:
+            json.dump(data, fp)
             self._struct = None
 
     def _load(self) -> Any:
         try:
             assert self._struct is None
             assert self.path.exists()
-            with self.path.open("rb") as fp:
-                self._struct = pickle.load(fp)
+            with self.path.open("r") as fp:
+                self._struct = json.load(fp)
         except AssertionError:
             pass
         return self._struct
 
     def do_validate(self, force=False):
         try:
-            assert not force
+            assert force == False
             assert self.path.exists()
             mtime = datetime.fromtimestamp(self.path.stat().st_mtime, tz=timezone.utc)
-            logging.info(mtime)
-            logging.info(datetime.now(tz=timezone.utc))
-            logging.info(datetime.now(tz=timezone.utc) - mtime)
-            assert datetime.now(tz=timezone.utc) - mtime < self._lifetime
+            log(self._lifetime)
+            log(datetime.now(tz=timezone.utc) - mtime)
+            assert (datetime.now(tz=timezone.utc) - mtime) < self._lifetime
         except (AssertionError, FileNotFoundError):
-            logging.warning("requires reload")
+            log("requires reload")
             raise RequiresReload
 
 
@@ -80,7 +84,22 @@ class CategoriesResource(BaseApiResource):
 
     @property
     def path(self) -> Path:
-        return self.__class__.profile_path / "categories.data"
+        return self.__class__.profile_path / "categories.json"
+    
+    def do_save(self, data: Any):
+        with self.path.open("w") as fp:
+            json.dump([dataclasses.asdict(st) for st in data], fp)
+            self._struct = None
+            
+    def _load(self) -> Any:
+        try:
+            assert self._struct is None
+            assert self.path.exists()
+            with self.path.open("r") as fp:
+                self._struct = [Category(**d) for d in json.load(fp)]
+        except AssertionError:
+            pass
+        return self._struct
 
     def get_data(self, *args, **kwds) -> Optional[list[Category]]:
         return self._load()
@@ -92,9 +111,14 @@ class StreamsResource(BaseApiResource):
 
     @property
     def path(self) -> Path:
-        return self.__class__.profile_path / "streams.data"
+        return self.__class__.profile_path / "streams.json"
 
-    @lru_cache()
+
+    def do_save(self, data: Any):
+        with self.path.open("w") as fp:
+            json.dump([dataclasses.asdict(st) for st in data], fp)
+            self._struct = None
+
     def get_data(
             self,
             category_id: str = None,
@@ -115,8 +139,8 @@ class StreamsResource(BaseApiResource):
             assert self._struct is None
             assert self.path.exists()
             logging.warning("file reload")
-            with self.path.open("rb") as fp:
-                struct: list[Stream] = pickle.load(fp)
+            with self.path.open("r") as fp:
+                struct: list[Stream] = [Stream(**d) for d in json.load(fp)]
                 self._struct = reduce(lambda r, x: {
                     **r,
                     **{x.category_id: r.get(x.category_id, [])+[x]}
@@ -132,7 +156,22 @@ class ApiInfoResource(BaseApiResource):
 
     @property
     def path(self) -> Path:
-        return self.__class__.profile_path / "apinfo.data"
+        return self.__class__.profile_path / "apinfo.json"
+    
+    def _load(self) -> Any:
+        try:
+            assert self._struct is None
+            assert self.path.exists()
+            with self.path.open("r") as fp:
+                self._struct = ApiInfo(**json.load(fp))
+        except AssertionError:
+            pass
+        return self._struct
+    
+    def do_save(self, data: Any):
+        with self.path.open("w") as fp:
+            json.dump(dataclasses.asdict(data), fp)
+            self._struct = None
 
     def get_data(self, *args, **kwds) -> Optional[ApiInfo]:
         return self._load()
@@ -182,6 +221,8 @@ class ApiMeta(type):
 
 
 class Api(object, metaclass=ApiMeta):
+    
+    
 
     def __init__(self, info: Settings) -> None:
         self.__username = info.username
@@ -199,17 +240,19 @@ class Api(object, metaclass=ApiMeta):
         return f"https://{self.__hostname}:{self.__https_port}/live/{self.__username}/{self.__password}"
 
     def __get(self, url, params: dict[str, Any] = {}) -> dict[str, Any]:
+        log(f"started {url}")
         res = requests.get(
             url=url,
             params=params
         )
-        return res.json()
+        data = res.json()
+        log(f"finished {url}")
+        return data
 
     def get_categories(self, reload=False) -> CategoriesResource:
         try:
             CategoriesResource.validate(reload)
         except RequiresReload as e:
-            logging.info(e)
             data = self.__get(
                 self.player_api,
                 dict(
