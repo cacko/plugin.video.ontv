@@ -233,11 +233,11 @@ class Api(object, metaclass=ApiMeta):
 
     @property
     def player_api(self) -> str:
-        return f"https://{self.__hostname}:{self.__https_port}/player_api.php"
+        return f"http://{self.__hostname}:{self.__port}/player_api.php"
 
     @property
     def stream_api(self) -> str:
-        return f"https://{self.__hostname}:{self.__https_port}/live/{self.__username}/{self.__password}"
+        return f"http://{self.__hostname}:{self.__port}/live/{self.__username}/{self.__password}"
 
     def __get(self, url, params: dict[str, Any] = {}) -> dict[str, Any]:
         log(f"started {url}")
