@@ -35,6 +35,7 @@ class Favourites(object, metaclass=FavouritesMeta):
 
     def __init__(self, profile: Path) -> None:
         self.__profile = profile
+        self.__favourites = []
 
     @property
     def json_path(self) -> Path:
@@ -42,19 +43,19 @@ class Favourites(object, metaclass=FavouritesMeta):
 
     @property
     def favourites(self) -> list[Stream]:
-        result = []
-        try:
-            with self.json_path.open("r") as fp:
-                data = json.load(fp)
-                assert data
-                if len(data):
-                    streams = Client.streams
-                    result = list(map(lambda x: streams.get_data(stream_id=int(x)), data))
-        except FileNotFoundError:
-            pass
-        except Exception:
-            pass
-        return result
+        if not self.__favourites:
+            try:
+                with self.json_path.open("r") as fp:
+                    data = json.load(fp)
+                    assert data
+                    if len(data):
+                        streams = Client.streams
+                        self.__favourites = list(map(lambda x: streams.get_data(stream_id=int(x)), data))
+            except FileNotFoundError:
+                pass
+            except Exception:
+                pass
+        return self.__favourites
 
     def get_is_in(self, stream_id: str) -> bool:
         ids = list(map(lambda x: str(x.stream_id), self.favourites))
@@ -66,9 +67,11 @@ class Favourites(object, metaclass=FavouritesMeta):
         ids.append(stream_id)
         with self.json_path.open("w") as fp:
             json.dump(ids, fp)
+            self.__favourites = None
 
     def do_remove(self, stream_id: str):
         ids = list(map(lambda x: str(x.stream_id), self.favourites))
         ids.remove(stream_id)
         with self.json_path.open("w") as fp:
             json.dump(ids, fp)
+            self.__favourites = None
