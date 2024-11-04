@@ -8,6 +8,7 @@ from functools import reduce
 import xbmc
 import json
 import dataclasses
+from resources.lib.ensure import ensure, EnsureError
 
 
 def log(obj: any):
@@ -35,7 +36,7 @@ class ApiResourceType(type):
         cls().do_save(data)
 
     def validate(cls, force=False):
-        cls().do_validate(force)
+        return cls().do_validate(force)
 
 
 class BaseApiResource(object, metaclass=ApiResourceType):
@@ -57,23 +58,24 @@ class BaseApiResource(object, metaclass=ApiResourceType):
 
     def _load(self) -> Any:
         try:
-            assert self._struct is None
-            assert self.path.exists()
+            ensure(self._struct).is_none()
+            ensure(self.path.exists()).is_true()
             with self.path.open("r") as fp:
                 self._struct = json.load(fp)
-        except AssertionError:
+        except EnsureError:
             pass
         return self._struct
 
     def do_validate(self, force=False):
         try:
-            assert force == False
-            assert self.path.exists()
+            ensure(force).is_false()
+            ensure(self.path.exists()).is_true()
             mtime = datetime.fromtimestamp(self.path.stat().st_mtime, tz=timezone.utc)
+            age = datetime.now(tz=timezone.utc) - mtime
             log(self._lifetime)
             log(datetime.now(tz=timezone.utc) - mtime)
-            assert (datetime.now(tz=timezone.utc) - mtime) < self._lifetime
-        except (AssertionError, FileNotFoundError):
+            ensure(self._lifetime).is_greater_than(age)
+        except EnsureError:
             log("requires reload")
             raise RequiresReload
 
@@ -93,11 +95,11 @@ class CategoriesResource(BaseApiResource):
             
     def _load(self) -> Any:
         try:
-            assert self._struct is None
-            assert self.path.exists()
+            ensure(self._struct).is_none()
+            ensure(self.path.exists()).is_true()
             with self.path.open("r") as fp:
                 self._struct = [Category(**d) for d in json.load(fp)]
-        except AssertionError:
+        except EnsureError:
             pass
         return self._struct
 
@@ -136,16 +138,15 @@ class StreamsResource(BaseApiResource):
 
     def _load(self) -> Any:
         try:
-            assert self._struct is None
-            assert self.path.exists()
-            logging.warning("file reload")
+            ensure(self._struct).is_none()
+            ensure(self.path.exists()).is_true()
             with self.path.open("r") as fp:
                 struct: list[Stream] = [Stream(**d) for d in json.load(fp)]
                 self._struct = reduce(lambda r, x: {
                     **r,
                     **{x.category_id: r.get(x.category_id, [])+[x]}
                 }, struct, {})
-        except AssertionError:
+        except EnsureError:
             pass
         return self._struct
 
@@ -160,11 +161,11 @@ class ApiInfoResource(BaseApiResource):
     
     def _load(self) -> Any:
         try:
-            assert self._struct is None
-            assert self.path.exists()
+            ensure(self._struct).is_none()
+            ensure(self.path.exists()).is_true()
             with self.path.open("r") as fp:
                 self._struct = ApiInfo(**json.load(fp))
-        except AssertionError:
+        except EnsureError:
             pass
         return self._struct
     
@@ -252,7 +253,7 @@ class Api(object, metaclass=ApiMeta):
     def get_categories(self, reload=False) -> CategoriesResource:
         try:
             CategoriesResource.validate(reload)
-        except RequiresReload as e:
+        except RequiresReload:
             data = self.__get(
                 self.player_api,
                 dict(

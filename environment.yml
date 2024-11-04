@@ -8,7 +8,7 @@ dependencies:
   - libffi=3.4.2
   - libsqlite=3.43.0
   - libzlib=1.2.13
-  - ncurses=6.4
+  - ncurses=6.4.20240210
   - openssl=3.1.2
   - pip=23.2.1
   - python=3.11.5
@@ -25,6 +25,7 @@ dependencies:
       - idna==3.4
       - kodistubs==20.0.1
       - requests==2.31.0
+      - six==1.16.0
       - urllib3==2.0.4
       - urlquick==2.0.1
-prefix: /Volumes/Devo/Users/jago/mambaforge/envs/ontv-kodi
+prefix: /Volumes/Devo/Users/jago/miniforge3/envs/ontv-kodi

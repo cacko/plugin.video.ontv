@@ -3,7 +3,7 @@ from typing import Any
 import json
 from resources.lib.models import Stream
 from resources.lib.api import Api as Client
-
+from resources.lib.ensure import ensure
 
 class FavouritesMeta(type):
     __instance: 'Favourites' = None
@@ -47,7 +47,7 @@ class Favourites(object, metaclass=FavouritesMeta):
             try:
                 with self.json_path.open("r") as fp:
                     data = json.load(fp)
-                    assert data
+                    ensure(data).is_not_none()
                     if len(data):
                         streams = Client.streams
                         self.__favourites = list(map(lambda x: streams.get_data(stream_id=int(x)), data))

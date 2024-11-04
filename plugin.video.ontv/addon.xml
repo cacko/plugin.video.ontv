@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="plugin.video.ontv" name="onTV" version="0.0.56" provider-name="cacko">
+<addon id="plugin.video.ontv" name="onTV" version="0.1.3" provider-name="cacko">
   <requires>
     <import addon="xbmc.python" version="3.0.0"/>
     <import addon="script.module.requests" version="2.7.0"/>
-    <import addon="inputstream.ffmpegdirect" version="21.3.4.1"/>
+    <import addon="script.module.six" version="1.16.0"/>
+    <import addon="inputstream.ffmpegdirect" version="22.0.1.2"/>
   </requires>
   <extension point="xbmc.python.pluginsource" library="default.py">
-    <provides>audio video</provides>
+    <provides>video</provides>
   </extension>
   <extension point="xbmc.addon.metadata">
     <summary lang="en_GB">onTV by cacko</summary>

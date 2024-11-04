@@ -51,8 +51,8 @@ content_id = params.get("id")
 name = params.get("name")
 mode = ITEM_MODE(params.get("mode", ""))
 
-logging.warning(sys.argv[2])
-logging.warning(params)
+logging.debug(sys.argv[2])
+logging.debug(params)
 
 match (mode):
     case ITEM_MODE.MAIN:
@@ -72,7 +72,7 @@ match (mode):
         keyboard.doModal()
         if keyboard.isConfirmed():
             query = keyboard.getText()
-            with_scores = map(lambda st: get_Score(st, query), Client.streams)
+            with_scores = map(lambda st: get_Score(st, query), Client.streams.get_data())
             valid_scores = [(sc, st) for sc, st in with_scores if sc > 0]
             streams = list(map(lambda sc: sc[1], sorted(valid_scores, key=lambda sc: sc[0], reverse=True)))
             main.createStreamsMenu(streams[:24])
