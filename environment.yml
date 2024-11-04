@@ -24,6 +24,7 @@ dependencies:
       - htmlement==2.0.0
       - idna==3.4
       - kodistubs==20.0.1
+      - repr==0.3.1
       - requests==2.31.0
       - six==1.16.0
       - urllib3==2.0.4
